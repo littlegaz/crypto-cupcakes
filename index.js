@@ -4,7 +4,8 @@ const express = require('express');
 const app = express();
 const morgan = require('morgan');
 const { PORT = 3000 } = process.env;
-// TODO - require express-openid-connect and destructure auth from it
+const { auth } = require('express-openid-connect');
+const { requiresAuth } = require('express-openid-connect');
 
 const { User, Cupcake } = require('./db');
 
@@ -15,6 +16,49 @@ app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 
 /* *********** YOUR CODE HERE *********** */
+const config = {
+  authRequired: true,
+  auth0Logout: true,
+  secret: 'a long, randomly-generated string stored in env',
+  baseURL: 'http://localhost:3000',
+  clientID: 'Zm6XiULa3dA2qZ20ziaso4t07U1du0ts',
+  issuerBaseURL: 'https://dev-bre77a26kdxla4hw.us.auth0.com'
+};
+app.use(auth(config));
+
+app.get('/', (req, res) => {
+  const user = req.oidc.user;
+  console.log(user);
+
+  const html = req.oidc.isAuthenticated() ? `
+    <html>
+      <head>
+        <title>User Profile</title>
+      </head>
+      <body>
+        <h1>Logged in</h1>
+        <p>User Profile:</p>
+        <ul>
+          <li>Nickname: ${user.nickname}</li>
+          <li>Name: ${user.name}</li>
+          <li>Email: ${user.email}</li>
+          <li>Picture: <img src="${user.picture}" alt="User Picture" /></li>
+        </ul>
+      </body>
+    </html>
+  ` : `
+    <html>
+      <head>
+        <title>User Profile</title>
+      </head>
+      <body>
+        <h1>Logged out</h1>
+      </body>
+    </html>
+  `;
+
+  res.send(html);
+});
 // follow the module instructions: destructure config environment variables from process.env
 // follow the docs:
   // define the config object
@@ -29,6 +73,10 @@ app.get('/cupcakes', async (req, res, next) => {
     console.error(error);
     next(error);
   }
+});
+
+app.get('/profile', requiresAuth(), (req, res) => {
+  res.send(JSON.stringify(req.oidc.user));
 });
 
 // error handling middleware
